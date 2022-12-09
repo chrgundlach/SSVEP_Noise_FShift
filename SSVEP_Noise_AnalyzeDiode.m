@@ -14,8 +14,13 @@ p.trig.trial_end = 89;
 p.trig.cue = [[1 2 3 4], [1 2 3 4]+100,  [1 2 3 4]+200,  [1 2 3 4]+110,  [1 2 3 4]+120,  [1 2 3 4]+210,  [1 2 3 4]+220];
 
 p.SSVEP_freq = 63;
+p.BRBF_freq = 65;
 
 p.fftres = 2^14;
+
+p.filt_SSVEP = [60 65];
+p.filt_Noise = [45 85];
+p.plv_lagrange = [-200 200];
 %% read in data
 DIODE_Meas = pop_readbdf(p.path_bdf, [] ,2,[]);
 % pop_eegplot(DIODE_Meas,1,1,1)
@@ -116,3 +121,85 @@ ylabel('amplitude in a.u.')
 xlim([0 130])
 title(sprintf('measured BRBF spectra for %1.0f trials', sum(t.idx)))
 legend([h.pl1(1) h.pl2 h.pl3],{'single trial';'average single trial';'evoked'})
+
+
+%% calculate single trial coherence/PLV
+% resample EEG signal to have same sampling rate as Projector?
+DIODE_Meas_rs = pop_resample(DIODE_Meas,480);
+
+% filter data for SSVEP
+% DIODE_Meas_rsfS = pop_eegfiltnew(DIODE_Meas_rs, p.filt_SSVEP(1), p.filt_SSVEP(2), 16*DIODE_Meas_rs.srate, 0, [], 0);
+DIODE_Meas_rsfS = DIODE_Meas_rs;
+DIODE_Meas_rsfS.data = filterFGx(DIODE_Meas_rsfS.data,DIODE_Meas_rsfS.srate,p.SSVEP_freq,5,0);
+% pop_eegplot(DIODE_Meas_rsfS,1,1,1)
+
+% filter data for Noise
+% DIODE_Meas_rsfN = pop_eegfiltnew(DIODE_Meas_rs, p.filt_Noise(1), p.filt_Noise(2), 16*DIODE_Meas_rs.srate, 0, [], 0);
+DIODE_Meas_rsfN = DIODE_Meas_rs;
+DIODE_Meas_rsfS.data = filterFGx(DIODE_Meas_rsfN.data,DIODE_Meas_rsfS.srate,p.BRBF_freq,30,0);
+
+% epoch data
+DIODE_Meas_rsfSep = pop_epoch(DIODE_Meas_rsfS, num2cell(p.trig.cue), [p.plv_lagrange(1)/1000 (2000+p.plv_lagrange(2))/1000], 'epochinfo', 'yes');
+DIODE_Meas_rsfNep = pop_epoch(DIODE_Meas_rsfN, num2cell(p.trig.cue), [p.plv_lagrange(1)/1000 (2000+p.plv_lagrange(2))/1000], 'epochinfo', 'yes');
+% pop_eegplot(DIODE_Meas_rsfSep,1,1,1)
+
+% based on these calculate PLVs for different lags between measured signal and define diode signal
+res.PLV.lag_range = [-200 200];
+res.PLV.lag_rangeidx = dsearchn(DIODE_Meas_rsfSep.times',res.PLV.lag_range');
+res.PLV.lag_idx = res.PLV.lag_rangeidx(1):res.PLV.lag_rangeidx(2);
+
+% index flicker type
+idx.flickertype = [DIODE_Stimlog.flickertype]; idx.flickertype = idx.flickertype(1:2:end);
+idx.SSVEP = find(strcmp(idx.flickertype,'SSVEP'));
+idx.BRBF = find(strcmp(idx.flickertype,'BRBF'));
+
+% loop across lags
+res.lagged_PLV_SSVEP_data = nan(DIODE_Stimlog(idx.SSVEP(1)).post_cue_times, numel(res.PLV.lag_idx),2);
+res.lagged_PLV_SSVEP_time = nan(DIODE_Stimlog(idx.SSVEP(1)).post_cue_times, numel(res.PLV.lag_idx));
+for i_lag = 1:numel(res.PLV.lag_idx)
+    % do SSVEP phase coherence
+    t.PLV_tr = nan(DIODE_Stimlog(idx.SSVEP(1)).post_cue_times,numel(idx.SSVEP),2); % timepoint X trials X real/control
+    for i_tr = 1:numel(idx.SSVEP)
+        % diode signal from cue onwards
+        t.ydata = DIODE_Stimlog(idx.SSVEP(i_tr)).lummat(1,DIODE_Stimlog(idx.SSVEP(i_tr)).pre_cue_frames+1:end);
+        % filter signal
+        t.ydataf =filterFGx(t.ydata,DIODE_Meas_rsfS.srate,p.SSVEP_freq,5,0);
+        t.ydata_hilb = hilbert(t.ydataf);
+        % figure; plot(angle(t.ydata_hilb))
+        
+        t.xdata = DIODE_Meas_rsfSep.data(1,(1:numel(t.ydata_hilb))+i_lag-1,idx.SSVEP(i_tr));
+        t.xdata_hilb = hilbert(t.xdata);
+        % figure; plot(angle(t.xdata_hilb))
+        
+        % calculate PLV for real signal
+        t.PLV_tr(:,i_tr,1) = exp(1i*(angle(t.xdata_hilb) - angle(t.ydata_hilb)));
+        
+        % trouble shooting data
+%         figure; plot(angle(t.ydata_hilb)); hold on; plot(angle(t.xdata_hilb))
+%         figure; plot((t.ydataf)*0.6*10^6); hold on; plot(t.xdata)
+        
+        % pseudo PLV witg BRBF
+        % diode signal from cue onwards for random BRBF trial
+        t.idx = randsample(idx.BRBF,1);
+        t.ydata = DIODE_Stimlog(t.idx).lummat(1,DIODE_Stimlog(t.idx).pre_cue_frames+1:end);
+        % filter signal
+        t.ydataf =filterFGx(t.ydata,DIODE_Meas_rsfS.srate,p.BRBF_freq,30,0);
+        t.ydata_hilb = hilbert(t.ydataf);
+        % figure; plot(angle(t.ydata_hilb))
+        
+        % calculate PLV for pseudo signal
+        t.PLV_tr(:,i_tr,2) = exp(1i*(angle(t.xdata_hilb) - angle(t.ydata_hilb)));
+    end
+    % extract time value
+    res.lagged_PLV_time(:,i_lag) = DIODE_Meas_rsfSep.times((1:numel(t.ydata_hilb))+i_lag-1);
+    
+    % extract data
+    res.lagged_PLV_SSVEP_data(:,i_lag,:) = abs(sum(t.PLV_tr,2))/size(t.PLV_tr,2);
+    % figure; plot(res.lagged_PLV_time(:,i_lag), squeeze(res.lagged_PLV_SSVEP_data(:,i_lag,:)))
+end
+
+% plot results
+figure;
+plot(res.lagged_PLV_time(1,:), squeeze(mean(res.lagged_PLV_SSVEP_data(:,:,:),1)))
+xlabel('lag in ms')
+ylabel('PLV')
