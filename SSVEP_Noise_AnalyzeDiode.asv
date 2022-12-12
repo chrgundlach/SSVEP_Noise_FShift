@@ -283,7 +283,7 @@ plot(res.lagged_PLV_time(1,:), squeeze(mean(res.lagged_PLV_SSVEP_data(:,:,:),1))
 xlabel('lag in ms')
 ylabel('PLV')
 legend({'real effect';'random effect'}, 'Location','SouthOutside','Orientation','horizontal')
-title(sprintf('SSVEP | avg. PLVs between presented and recorded signal for different lags | N = %1.0f trials', numel(idx.SSVEP)))
+title(sprintf('SSVEP | avg. PLVs between presented and recorded signal for different lags | N = '))
 
 % plot results | BRBF data
 subplot(2,1,2)
@@ -293,5 +293,4 @@ text(res.lagged_PLV_time(1,t.idx), t.m,sprintf('| max at %1.3f ms', res.lagged_P
 xlabel('lag in ms')
 ylabel('PLV')
 legend({'real effect';'random effect | other BRBF'; 'random effect | SSVEP'}, 'Location','SouthOutside','Orientation','horizontal')
-title(sprintf('BRBF | avg. PLVs between presented and recorded signal for different lags | N = %1.0f trials', numel(idx.BRBF)))
-
+title('BRBF | avg. PLVs between presented and recorded signal for different lags')
