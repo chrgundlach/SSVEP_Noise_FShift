@@ -57,6 +57,38 @@ DIODE_Meas_EP_cue = pop_epoch( DIODE_Meas, num2cell(p.trig.cue), [-1 2.1], 'epoc
 idx.flickertype = [DIODE_Stimlog.flickertype]; idx.flickertype = idx.flickertype(1:2:end);
 
 figure;
+set(gcf,'Position',[100 100 1200 300],'PaperPositionMode','auto')
+% plot single-trial stimulation signals
+% first SSVEP trial
+subplot(1,2,1)
+pl.ydata = DIODE_Stimlog(find(strcmp(idx.flickertype,'SSVEP'),1,'first')).lummat;
+pl.xdata = ((1:size(pl.ydata,2))-DIODE_Stimlog(find(strcmp(idx.flickertype,'SSVEP'),1,'first')).pre_cue_frames-1)./480*1000;
+% plot(pl.xdata,pl.ydata+[0; 0.9])
+h.pl = plot(pl.xdata,pl.ydata);
+xlim([-100 400])
+ylim([-0.1 1.1])
+h.pl(1).Color = [1 0.4 0]; h.pl(2).Color = [0 0.4 1];
+ylabel('luminance')
+xlabel('time in ms relative to cue')
+legend({'SSVEP 1';'SSVEP 2'},'Location','SouthOutside','Orientation','horizontal')
+
+subplot(1,2,2)
+pl.ydata = DIODE_Stimlog(find(strcmp(idx.flickertype,'BRBF'),1,'first')).lummat;
+pl.xdata = ((1:size(pl.ydata,2))-DIODE_Stimlog(find(strcmp(idx.flickertype,'BRBF'),1,'first')).pre_cue_frames-1)./480*1000;
+% plot(pl.xdata,pl.ydata+[0; 0.9])
+h.pl = plot(pl.xdata,pl.ydata);
+xlim([-100 400])
+ylim([-0.1 1.1])
+h.pl(1).Color = [1 0.4 0]; h.pl(2).Color = [0 0.4 1];
+ylabel('luminance')
+xlabel('time in ms relative to cue')
+legend({'BRBF 1';'BRBF 2'},'Location','SouthOutside','Orientation','horizontal')
+
+% SaveCurrentFigure([pwd '\figure' ], 'single_trial_luminance')
+
+
+% plot recorded data
+figure;
 set(gcf,'Position',[100 100 1200 400],'PaperPositionMode','auto')
 subplot(1,2,1)
 t.idx = strcmp(idx.flickertype,'SSVEP');
@@ -82,9 +114,13 @@ xlim(DIODE_Meas_EP_cue.times([1 end]))
 title(sprintf('measured BRBF signals for %1.0f trials', sum(t.idx)))
 legend([h.pl1(1) h.pl2], {'single trial';'average'},'Location','SouthOutside','Orientation','horizontal')
 
+% SaveCurrentFigure([pwd '\figure' ], 'measured_luminance')
 
 %% do FFT transforms + plotting
 DIODE_Meas_EP_cue_stim = pop_select(DIODE_Meas_EP_cue, 'time', [-1 2]);
+
+% index flicker type
+idx.flickertype = [DIODE_Stimlog.flickertype]; idx.flickertype = idx.flickertype(1:2:end);
 
 % induced
 t.data = squeeze(DIODE_Meas_EP_cue_stim.data);
@@ -128,6 +164,7 @@ xlim([0 130])
 title(sprintf('measured BRBF spectra for %1.0f trials', sum(t.idx)))
 legend([h.pl1(1) h.pl2 h.pl3],{'single trial';'average single trial';'evoked'})
 
+% SaveCurrentFigure([pwd '\figure' ], 'amplitude_spectra_measured_luminance')
 
 %% calculate single trial coherence/PLV
 % resample EEG signal to have same sampling rate as Projector?
@@ -277,11 +314,12 @@ fprintf('...done!\n')
 
 % plot results | SSVEP data
 figure;
-set(gcf,'Position',[100 100 1200 700],'PaperPositionMode','auto')
+set(gcf,'Position',[100 100 700 700],'PaperPositionMode','auto')
 subplot(2,1,1)
 plot(res.lagged_PLV_time(1,:), squeeze(mean(res.lagged_PLV_SSVEP_data(:,:,:),1)))
 xlabel('lag in ms')
 ylabel('PLV')
+ylim([0 1.1])
 legend({'real effect';'random effect'}, 'Location','SouthOutside','Orientation','horizontal')
 title(sprintf('SSVEP | avg. PLVs between presented and recorded signal for different lags | N = %1.0f trials', numel(idx.SSVEP)))
 
@@ -292,6 +330,8 @@ plot(res.lagged_PLV_time(1,:), squeeze(mean(res.lagged_PLV_BRBF_data(:,:,:),1)))
 text(res.lagged_PLV_time(1,t.idx), t.m,sprintf('| max at %1.3f ms', res.lagged_PLV_time(1,t.idx)))
 xlabel('lag in ms')
 ylabel('PLV')
+ylim([0 1.1])
 legend({'real effect';'random effect | other BRBF'; 'random effect | SSVEP'}, 'Location','SouthOutside','Orientation','horizontal')
 title(sprintf('BRBF | avg. PLVs between presented and recorded signal for different lags | N = %1.0f trials', numel(idx.BRBF)))
 
+% SaveCurrentFigure([pwd '\figure' ], 'PLV_measured_stimulated_luminance')
