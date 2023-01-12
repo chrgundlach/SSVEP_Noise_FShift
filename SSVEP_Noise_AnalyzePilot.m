@@ -9,6 +9,7 @@ clearvars
 p.pathin = 'O:\AllgPsy\experimental_data\2022_SSVEP_Noise_FShift\eeg\epoch';
 p.pathin_SCADS = 'O:\AllgPsy\experimental_data\2022_SSVEP_Noise_FShift\eeg\SCADS';
 p.path_beh = 'O:\AllgPsy\experimental_data\2022_SSVEP_Noise_FShift\logs';
+p.pathout = 'O:\AllgPsy\experimental_data\2022_SSVEP_Noise_FShift\eeg\results';
 
 p.subs=             cellfun(@(x) sprintf('%02.0f',x),num2cell(1:40),'UniformOutput', false)';
 p.subs=             cellfun(@(x) sprintf('%02.0f',x),num2cell(101),'UniformOutput', false)'; % pilot
@@ -238,6 +239,8 @@ end
 
 
 %% calculate single trial coherence/PLV
+p.calc_cohere_flag = 0;
+
 % resample EEG signal to have same sampling rate as Projector?
 EEG_rs = pop_resample(EEG,480);
 
@@ -255,7 +258,7 @@ EEG_rsfS2.data = filterFGx(EEG_rsfS2.data,EEG_rsfS2.srate,p.SSVEP_freqs(2),5,0);
 % filter data for BroadbandNoise
 % EEG_rsfN = pop_eegfiltnew(EEG_rs, p.filt_Noise(1), p.filt_Noise(2), 16*EEG_rs.srate, 0, [], 0);
 EEG_rsfN = EEG_rs;
-EEG_rsfN.data = filterFGx(EEG_rsfN.data,EEG_rsfS.srate,p.BRBF_freq,30,0);
+EEG_rsfN.data = filterFGx(EEG_rsfN.data,EEG_rsfN.srate,p.BRBF_freq,30,0);
 
 % epoch data
 EEG_rsfS1ep = pop_epoch(EEG_rsfS1, num2cell(p.trig.cue), [p.plv_lagrange(1)/1000 p.plv_lagrange(2)/1000]+p.ep_time, 'epochinfo', 'yes');
@@ -277,57 +280,68 @@ idx.BRBF = find(strcmp(idx.flickertype,'BRBF'));
 res.lagged_PLV_SSVEP_data = nan(numel(res.lum.times), numel(res.PLV.lag_idx),EEG_rsfS1.nbchan ,2,2); % time X lag X chan X RDK X [real other SSVEP]
 res.lagged_PLV_SSVEP_time = nan(numel(res.lum.times), numel(res.PLV.lag_idx));
 
-wtb.msg = sprintf('calculating %1.0f PLVs | %1.0f trials | SSVEP data ...',numel(res.PLV.lag_idx)*EEG_rsfS1ep.nbchan*4,numel(idx.SSVEP));
-wtb.prgr = 0;
-wtb.f = waitbar(wtb.prgr,wtb.msg);
-for i_lag = 1:numel(res.PLV.lag_idx)
-    % do SSVEP phase coherence
-    t.PLV_tr = nan(numel(res.lum.times),EEG_rsfS1.nbchan ,numel(idx.SSVEP),2, 2); %time X chan X trials X RDK X [real other SSVEP]
-    for i_tr = 1:numel(idx.SSVEP)
-        % diode signals around cue
-        t.ydata = res.lum.data(:,:,idx.SSVEP(i_tr));
-        % filter signals
-        t.ydataf =filterFGx(t.ydata(1,:),EEG_rsfS1.srate,p.SSVEP_freqs(1),5,0);
-        t.ydataf(2,:) =filterFGx(t.ydata(2,:),EEG_rsfS1.srate,p.SSVEP_freqs(2),5,0);
-        t.ydata_hilb = hilbert(t.ydataf')';
-        % figure; plot(angle(t.ydata_hilb)')
-        
-        % loop across channels
-        for i_el = 1: EEG_rsfS1ep.nbchan
-            % EEG data
-            t.xdata = EEG_rsfS1ep.data(i_el,(1:size(t.ydata_hilb,2))+i_lag-1,idx.SSVEP(i_tr));
-            t.xdata(2,:) = EEG_rsfS2ep.data(i_el,(1:size(t.ydata_hilb,2))+i_lag-1,idx.SSVEP(i_tr));
-            t.xdata_hilb = hilbert(t.xdata')';
-            % figure; plot(angle(t.xdata_hilb))
-            
-            % calculate PLV for real signal
-            t.PLV_tr(:,i_el,i_tr,1,1) = exp(1i*(angle(t.xdata_hilb(1,:)) - angle(t.ydata_hilb(1,:)))); % RDK1 real
-            t.PLV_tr(:,i_el,i_tr,1,2) = exp(1i*(angle(t.xdata_hilb(1,:)) - angle(t.ydata_hilb(2,:)))); % RDK1 pseudo
-            t.PLV_tr(:,i_el,i_tr,2,1) = exp(1i*(angle(t.xdata_hilb(2,:)) - angle(t.ydata_hilb(2,:)))); % RDK2 real
-            t.PLV_tr(:,i_el,i_tr,2,2) = exp(1i*(angle(t.xdata_hilb(2,:)) - angle(t.ydata_hilb(1,:)))); % RDK2 pseudo
-            
-            % trouble shooting data
-            %         figure; plot(angle(t.ydata_hilb)); hold on; plot(angle(t.xdata_hilb))
-            %         figure; plot((t.ydataf)*0.6*10^6); hold on; plot(t.xdata)
-            %         figure; plot((angle(t.xdata_hilb) - angle(t.ydata_hilb)))
-            
-            % display waitbar
-            wtb.prgr = wtb.prgr +1;
-            waitbar(wtb.prgr/(numel(res.PLV.lag_idx)*EEG_rsfS1ep.nbchan*numel(idx.SSVEP)),wtb.f);
-            
-        end
-        
-        
-    end
-    % extract time value
-    res.lagged_PLV_time(:,i_lag) = EEG_rsfS1ep.times((1:size(t.ydata_hilb,2))+i_lag-1);
-    
-    % extract data
-    res.lagged_PLV_SSVEP_data(:,i_lag,:,:,:) = abs(sum(t.PLV_tr,3))/size(t.PLV_tr,3);
-    % figure; plot(res.lagged_PLV_time(:,i_lag), squeeze(res.lagged_PLV_SSVEP_data(:,i_lag,:)))
+% check for coherence file
+t.file_loaded = 1;
+try
+    datin = load(fullfile(p.pathout, sprintf('VP%s_cohere.mat',p.subs{p.subs2use(i_sub)})));
+catch
+    t.file_loaded = 0;
 end
-fprintf('...done!\n')
-close(wtb.f)
+
+if ~(p.calc_cohere_flag == 0 & t.file_loaded==1 & exist('datin.res.res.lagged_PLV_SSVEP_data'))
+    wtb.msg = sprintf('calculating %1.0f PLVs | %1.0f trials | SSVEP data ...',numel(res.PLV.lag_idx)*EEG_rsfS1ep.nbchan*4,numel(idx.SSVEP));
+    wtb.prgr = 0;
+    wtb.f = waitbar(wtb.prgr,wtb.msg);
+    for i_lag = 1:numel(res.PLV.lag_idx)
+        % do SSVEP phase coherence
+        t.PLV_tr = nan(numel(res.lum.times),EEG_rsfS1.nbchan ,numel(idx.SSVEP),2, 2); %time X chan X trials X RDK X [real other SSVEP]
+        for i_tr = 1:numel(idx.SSVEP)
+            % diode signals around cue
+            t.ydata = res.lum.data(:,:,idx.SSVEP(i_tr));
+            % filter signals
+            t.ydataf =filterFGx(t.ydata(1,:),EEG_rsfS1.srate,p.SSVEP_freqs(1),5,0);
+            t.ydataf(2,:) =filterFGx(t.ydata(2,:),EEG_rsfS1.srate,p.SSVEP_freqs(2),5,0);
+            t.ydata_hilb = hilbert(t.ydataf')';
+            % figure; plot(angle(t.ydata_hilb)')
+
+            % loop across channels
+            for i_el = 1: EEG_rsfS1ep.nbchan
+                % EEG data
+                t.xdata = EEG_rsfS1ep.data(i_el,(1:size(t.ydata_hilb,2))+i_lag-1,idx.SSVEP(i_tr));
+                t.xdata(2,:) = EEG_rsfS2ep.data(i_el,(1:size(t.ydata_hilb,2))+i_lag-1,idx.SSVEP(i_tr));
+                t.xdata_hilb = hilbert(t.xdata')';
+                % figure; plot(angle(t.xdata_hilb))
+
+                % calculate PLV for real signal
+                t.PLV_tr(:,i_el,i_tr,1,1) = exp(1i*(angle(t.xdata_hilb(1,:)) - angle(t.ydata_hilb(1,:)))); % RDK1 real
+                t.PLV_tr(:,i_el,i_tr,1,2) = exp(1i*(angle(t.xdata_hilb(1,:)) - angle(t.ydata_hilb(2,:)))); % RDK1 pseudo
+                t.PLV_tr(:,i_el,i_tr,2,1) = exp(1i*(angle(t.xdata_hilb(2,:)) - angle(t.ydata_hilb(2,:)))); % RDK2 real
+                t.PLV_tr(:,i_el,i_tr,2,2) = exp(1i*(angle(t.xdata_hilb(2,:)) - angle(t.ydata_hilb(1,:)))); % RDK2 pseudo
+
+                % trouble shooting data
+                %         figure; plot(angle(t.ydata_hilb)); hold on; plot(angle(t.xdata_hilb))
+                %         figure; plot((t.ydataf)*0.6*10^6); hold on; plot(t.xdata)
+                %         figure; plot((angle(t.xdata_hilb) - angle(t.ydata_hilb)))
+
+                % display waitbar
+                wtb.prgr = wtb.prgr +1;
+                waitbar(wtb.prgr/(numel(res.PLV.lag_idx)*EEG_rsfS1ep.nbchan*numel(idx.SSVEP)),wtb.f);
+
+            end
+
+
+        end
+        % extract time value
+        res.lagged_PLV_time(:,i_lag) = EEG_rsfS1ep.times((1:size(t.ydata_hilb,2))+i_lag-1);
+
+        % extract data
+        res.lagged_PLV_SSVEP_data(:,i_lag,:,:,:) = abs(sum(t.PLV_tr,3))/size(t.PLV_tr,3);
+        % figure; plot(res.lagged_PLV_time(:,i_lag), squeeze(res.lagged_PLV_SSVEP_data(:,i_lag,:)))
+    end
+    fprintf('...done!\n')
+    close(wtb.f)
+
+end
 
 
 
