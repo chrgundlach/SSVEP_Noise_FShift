@@ -201,9 +201,20 @@ for i_type = 1:numel(res.flickertype)
     res.fft_evo(:,:,i_type) = squeeze(abs(fft(t.data,p.fftres,2))*2/size(t.data,2));
 end
 
-%% test plot
-figure; plot(res.fft_xscale, squeeze(res.fft_ind(28,:,:))); xlim([0 100]); xlabel('freq in Hz'); ylabel('amplitude'); legend(res.flickertype); title('induced at Iz')
-figure; plot(res.fft_xscale, squeeze(res.fft_evo(28,:,:))); xlim([0 100]); xlabel('freq in Hz'); ylabel('amplitude'); legend(res.flickertype); title('evoked at Iz')
+%% plotting spectra for specified electrodes
+pl.elec2plot = {'Iz'};
+pl.elec2plot_i = logical(sum(cell2mat(cellfun(@(x) strcmp({EEG.chanlocs.labels},x), pl.elec2plot, 'UniformOutput',false)),1));
+
+figure;
+set(gcf,'Position',[100 100 600 400],'PaperPositionMode','auto')
+tiledlayout(2,1,'TileSpacing','compact')
+nexttile
+plot(res.fft_xscale, squeeze(mean(res.fft_ind(pl.elec2plot_i,:,:),1)));
+xlim([0 100]); 
+xlabel('frequency in Hz');
+ylabel('amplitude in \muV/cm²');
+legend(res.flickertype);
+title(sprintf('induced activity | [%1.1f %1.1f]s | at %s',p.ep_time,vararg2str(pl.elec2plot)))
 
 %% plotting | topo
 % plot SSVEP amplitude topographies
