@@ -260,7 +260,7 @@ end
 
 
 %% calculate single trial coherence/PLV
-p.calc_cohere_flag = 0;
+p.calc_cohere_flag = 1;
 
 % resample EEG signal to have same sampling rate as Projector?
 EEG_rs = pop_resample(EEG,480);
@@ -432,13 +432,13 @@ if p.calc_cohere_flag == 1 | (t.file_loaded==1 & ~any(strcmp(fieldnames(datin.re
                 % figure; plot(t.xdata)
                 % figure; plot(angle(t.xdata_hilb))
 
-                % troubleshooting: calculate Coherence between other channel
-                % test with signals from other channels
-                t.tsdata = EEG_rsfNep.data([29 38],(1:size(t.ydata_hilb,2))+i_lag-1,idx.BRBF(i_tr));
-                % test with signals from other channels fixed at single onset (should reveal lagged difference)
-                t.tsdata = EEG_rsfNep.data([29 38],(1:size(t.ydata_hilb,2))+floor(numel(res.PLV.lag_idx)/2),idx.BRBF(i_tr));
-                t.ydata_hilb(3:4,:) = hilbert(t.tsdata')';
-                % figure; plot(t.tsdata')
+%                 % troubleshooting: calculate Coherence between other channel
+%                 % test with signals from other channels
+%                 t.tsdata = EEG_rsfNep.data([29 38],(1:size(t.ydata_hilb,2))+i_lag-1,idx.BRBF(i_tr));
+%                 % test with signals from other channels fixed at single onset (should reveal lagged difference)
+%                 t.tsdata = EEG_rsfNep.data([29 38],(1:size(t.ydata_hilb,2))+floor(numel(res.PLV.lag_idx)/2),idx.BRBF(i_tr));
+%                 t.ydata_hilb(3:4,:) = hilbert(t.tsdata')';
+%                 % figure; plot(t.tsdata')
 
 
                 % calculate PLV for different RDKs and real as well as pseudo signal
@@ -479,7 +479,7 @@ if p.calc_cohere_flag == 1 | (t.file_loaded==1 & ~any(strcmp(fieldnames(datin.re
 
 else
     % get data from loaded file
-    fprintf('\nused previously calculated lagged_PLV_BRBF coherence calculation from %s\n', res.date_lagged_PLV_BRBF_data)
+%     fprintf('\nused previously calculated lagged_PLV_BRBF coherence calculation from %s\n', res.date_lagged_PLV_BRBF_data)
     res.lagged_PLV_BRBF_data = datin.res.lagged_PLV_BRBF_data;
     res.lagged_PLV_BRBF_time = datin.res.lagged_PLV_BRBF_time;
     res.lagged_PLV_BRBF_lagtime = datin.res.lagged_PLV_BRBF_lagtime;
@@ -495,9 +495,9 @@ end
 
 % plot coherence for specified electrode cluster
 pl.elec2plot = {'Iz'};
-pl.elec2plot = {'Oz'};
-pl.elec2plot = {'C3'};
-pl.elec2plot = {'O1'};
+% pl.elec2plot = {'Oz'};
+% pl.elec2plot = {'C3'};
+% pl.elec2plot = {'O1'};
 pl.elec2plot_i = logical(sum(cell2mat(cellfun(@(x) strcmp({EEG.chanlocs.labels},x), pl.elec2plot, 'UniformOutput',false)),1));
 
 pl.cols2plot = [1 0.1 0.1; 0.5 0.1 0.1; 0.2 0.5 1; 0.2 0.25 0.5];
