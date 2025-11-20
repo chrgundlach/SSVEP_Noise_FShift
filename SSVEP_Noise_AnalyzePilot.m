@@ -6,10 +6,10 @@
 
 clearvars
 %% initial parameters
-p.pathin = 'O:\AllgPsy\experimental_data\2022_SSVEP_Noise_FShift\eeg\epoch';
-p.pathin_SCADS = 'O:\AllgPsy\experimental_data\2022_SSVEP_Noise_FShift\eeg\SCADS';
-p.path_beh = 'O:\AllgPsy\experimental_data\2022_SSVEP_Noise_FShift\logs';
-p.pathout = 'O:\AllgPsy\experimental_data\2022_SSVEP_Noise_FShift\eeg\results';
+p.pathin = 'N:\AllgPsy\experimental_data\2022_SSVEP_Noise_FShift\eeg\epoch';
+p.pathin_SCADS = 'N:\AllgPsy\experimental_data\2022_SSVEP_Noise_FShift\eeg\SCADS';
+p.path_beh = 'N:\AllgPsy\experimental_data\2022_SSVEP_Noise_FShift\logs';
+p.pathout = 'N:\AllgPsy\experimental_data\2022_SSVEP_Noise_FShift\eeg\results';
 
 p.subs=             cellfun(@(x) sprintf('%02.0f',x),num2cell(1:40),'UniformOutput', false)';
 p.subs=             cellfun(@(x) sprintf('%02.0f',x),num2cell(101),'UniformOutput', false)'; % pilot
@@ -160,7 +160,7 @@ end
 
 
 
-%% do FFT transforms
+%% do FFT transforms of EEG data
 EEG_EP_cue_stim = pop_select(EEG, 'time', p.ep_time);
 % pop_eegplot(EEG,1,1,1)
 % pop_eegplot(EEG_EP_cue_stim,1,1,1)
@@ -202,16 +202,16 @@ for i_type = 1:numel(res.flickertype)
 end
 
 %% plotting spectra for specified electrodes
-pl.elec2plot = {'POz';'Iz';'Oz';'O1';'O2'};
+% pl.elec2plot = {'POz';'Iz';'Oz';'O1';'O2'};
 pl.elec2plot = {'Iz';'Oz'};
 pl.elec2plot_i = logical(sum(cell2mat(cellfun(@(x) strcmp({EEG.chanlocs.labels},x), pl.elec2plot, 'UniformOutput',false)),1));
 
 figure;
-set(gcf,'Position',[100 100 600 400],'PaperPositionMode','auto')
+set(gcf,'Position',[100 100 600 600],'PaperPositionMode','auto')
 tiledlayout(2,1,'TileSpacing','compact')
 nexttile
 plot(res.fft_xscale, squeeze(mean(res.fft_ind(pl.elec2plot_i,:,:),1)));
-xlim([0 100]); 
+xlim([0 130]); 
 xlabel('frequency in Hz');
 ylabel('amplitude in \muV/cm²');
 legend(res.flickertype);
@@ -219,7 +219,7 @@ title(sprintf('induced activity | [%1.1f %1.1f]s | at %s',p.ep_time,vararg2str(p
 
 nexttile
 plot(res.fft_xscale, squeeze(mean(res.fft_evo(pl.elec2plot_i,:,:),1)));
-xlim([0 100]); 
+xlim([0 130]); 
 xlabel('frequency in Hz');
 ylabel('amplitude in \muV/cm²');
 legend(res.flickertype);
@@ -229,8 +229,10 @@ title(sprintf('evoked activity | [%1.1f %1.1f]s | at %s',p.ep_time,vararg2str(pl
 % plot SSVEP amplitude topographies
 pl.freqrange = [-0.1 0.1];
 pl.freqs = p.SSVEP_freqs;
-pl.freqs = [3.188];
-pl.freqs = [67];
+% pl.freqs = [3.188];
+% pl.freqs = [67];
+% pl.freqs = [14];
+pl.freqs = [3.125];
 pl.sig = {'ind';'evo'};
 
 pl.data = [];
@@ -266,12 +268,14 @@ p.calc_cohere_flag = 0;
 EEG_rs = pop_resample(EEG,480);
 
 % filter data for SSVEP
+% frequency 1
 % EEG_rsfS = pop_eegfiltnew(EEG_rs, p.filt_SSVEP(1), p.filt_SSVEP(2), 16*EEG_rs.srate, 0, [], 0);
 EEG_rsfS1 = EEG_rs;
 EEG_rsfS1.data = filterFGx(EEG_rsfS1.data,EEG_rsfS1.srate,p.SSVEP_freqs(1),5,0);
 % pop_eegplot(EEG_rsfS1,1,1,1)
 % pop_eegplot(EEG_rs,1,1,1)
 
+% frequency 2
 EEG_rsfS2 = EEG_rs;
 EEG_rsfS2.data = filterFGx(EEG_rsfS2.data,EEG_rsfS2.srate,p.SSVEP_freqs(2),5,0);
 % pop_eegplot(EEG_rsfS2,1,1,1)
@@ -306,6 +310,9 @@ res.lagged_PLV_SSVEP_time = nan(numel(res.lum.times), numel(res.PLV.lag_idx));
 t.file_loaded = 1;
 try
     datin = load(fullfile(p.pathout, sprintf('VP%s_cohere.mat',p.subs{p.subs2use(i_sub)})));
+    % datin = load(fullfile(p.pathout, sprintf('VP%s_cohere_realdata_diodeEEG.mat',p.subs{p.subs2use(i_sub)})));
+    % datin = load(fullfile(p.pathout, sprintf('VP%s_cohere_troubleshooting_neighelecs.mat',p.subs{p.subs2use(i_sub)})));
+    % datin = load(fullfile(p.pathout, sprintf('VP%s_cohere_troubleshooting_neighelecsa_lagat0.mat',p.subs{p.subs2use(i_sub)})));
 catch
     t.file_loaded = 0;
 end
@@ -321,7 +328,7 @@ if p.calc_cohere_flag == 1 | (t.file_loaded==1 & ~any(strcmp(fieldnames(datin.re
         for i_tr = 1:numel(idx.SSVEP)
             % diode signals around cue
             t.ydata = res.lum.data(:,:,idx.SSVEP(i_tr));
-            % pseudo data from BRBF
+            % pseudo data from BRBF (takes  luminance data from random BRBF trial)
             t.ydata(3:4,:) = res.lum.data(:,:,randsample(idx.BRBF,1));
             t.ydataf = t.ydata;
             % filter signals
@@ -350,9 +357,10 @@ if p.calc_cohere_flag == 1 | (t.file_loaded==1 & ~any(strcmp(fieldnames(datin.re
                 t.PLV_tr(:,i_el,i_tr,2,2) = exp(1i*(angle(t.xdata_hilb(2,:)) - angle(t.ydata_hilb(4,:)))); % RDK2 pseudo
 
                 % trouble shooting data
-                %         figure; plot(angle(t.ydata_hilb)); hold on; plot(angle(t.xdata_hilb))
-                %         figure; plot((t.ydataf)*0.6*10^6); hold on; plot(t.xdata)
-                %         figure; plot((angle(t.xdata_hilb) - angle(t.ydata_hilb)))
+                %         figure; plot(angle(t.ydata_hilb)'); hold on; plot(angle(t.xdata_hilb)')
+                %         figure; plot((t.ydataf)'*0.6*10^6); hold on; plot(t.xdata')
+                %         figure; plot((angle(t.xdata_hilb(1,:))' - angle(t.ydata_hilb(1,:))'))
+                %         figure; plot(exp(1i*(angle(t.xdata_hilb(1,:)) - angle(t.ydata_hilb(1,:)))))
                 %
                 % figure; plot( squeeze(t.PLV_tr(:,i_el,i_tr,1,:)))
 
@@ -387,7 +395,7 @@ if p.calc_cohere_flag == 1 | (t.file_loaded==1 & ~any(strcmp(fieldnames(datin.re
     
 else
     % get data from loaded file
-    fprintf('\nused previously calculated lagged_PLV_SSVEP coherence calculation from %s\n', res.date_lagged_PLV_SSVEP_data)
+    fprintf('\nused previously calculated lagged_PLV_SSVEP coherence calculation from %s\n', "res.date_lagged_PLV_SSVEP_data")
     res.lagged_PLV_SSVEP_data = datin.res.lagged_PLV_SSVEP_data;
     res.lagged_PLV_SSVEP_time = datin.res.lagged_PLV_SSVEP_time;
     res.lagged_PLV_SSVEP_lagtime = datin.res.lagged_PLV_SSVEP_lagtime;
@@ -411,7 +419,7 @@ if p.calc_cohere_flag == 1 | (t.file_loaded==1 & ~any(strcmp(fieldnames(datin.re
         % do BRBF phase coherence
         t.PLV_tr = nan(numel(res.lum.times),EEG_rsfNep.nbchan ,numel(idx.BRBF),2, 2); %time X chan X trials X RDK X [real other BRBF]
         for i_tr = 1:numel(idx.BRBF)
-            % diode signal from around cue
+            % log of lum signal from around cue
             t.ydata = res.lum.data(:,:,idx.BRBF(i_tr));
             % random lum data from other trial
             t.ydata(3:4,:) = res.lum.data(:,:,randsample(idx.BRBF,1));
@@ -419,8 +427,8 @@ if p.calc_cohere_flag == 1 | (t.file_loaded==1 & ~any(strcmp(fieldnames(datin.re
             % filter signal
             t.ydataf =filterFGx(t.ydata,EEG_rsfN.srate,p.BRBF_freq,30,0);
             t.ydata_hilb = hilbert(t.ydataf);
-            % figure; plot(t.ydata')
-            % figure; plot(t.ydataf')
+            % figure; plot(t.ydata'); xlim([100 300])
+            % figure; plot(t.ydataf'); xlim([100 300]); legend
             % figure; plot(angle(t.ydata_hilb)')
             % figure; plot(t.ydataf(1,:)); hold on; plot(detrend(t.ydata(1,:)));
             
@@ -432,13 +440,14 @@ if p.calc_cohere_flag == 1 | (t.file_loaded==1 & ~any(strcmp(fieldnames(datin.re
                 % figure; plot(t.xdata)
                 % figure; plot(angle(t.xdata_hilb))
 
-                % troubleshooting: calculate Coherence between other channel
-                % test with signals from other channels
-                t.tsdata = EEG_rsfNep.data([29 38],(1:size(t.ydata_hilb,2))+i_lag-1,idx.BRBF(i_tr));
-                % test with signals from other channels fixed at single onset (should reveal lagged difference)
-                t.tsdata = EEG_rsfNep.data([29 38],(1:size(t.ydata_hilb,2))+floor(numel(res.PLV.lag_idx)/2),idx.BRBF(i_tr));
-                t.ydata_hilb(3:4,:) = hilbert(t.tsdata')';
-                % figure; plot(t.tsdata')
+                % % troubleshooting: calculate Coherence between other channel as pseudo signal to check whether coherence
+                % % works at all
+                % % test with signals from other channels
+                % t.tsdata = EEG_rsfNep.data([29 38],(1:size(t.ydata_hilb,2))+i_lag-1,idx.BRBF(i_tr));
+                % % test with signals from other channels fixed at single onset (should reveal lagged difference)
+                % t.tsdata = EEG_rsfNep.data([29 38],(1:size(t.ydata_hilb,2))+floor(numel(res.PLV.lag_idx)/2),idx.BRBF(i_tr));
+                % t.ydata_hilb(3:4,:) = hilbert(t.tsdata')';
+                % % figure; plot(t.tsdata')
 
 
                 % calculate PLV for different RDKs and real as well as pseudo signal
@@ -479,7 +488,7 @@ if p.calc_cohere_flag == 1 | (t.file_loaded==1 & ~any(strcmp(fieldnames(datin.re
 
 else
     % get data from loaded file
-    fprintf('\nused previously calculated lagged_PLV_BRBF coherence calculation from %s\n', res.date_lagged_PLV_BRBF_data)
+    fprintf('\nused previously calculated lagged_PLV_BRBF coherence calculation from %s\n', "res.date_lagged_PLV_BRBF_data")
     res.lagged_PLV_BRBF_data = datin.res.lagged_PLV_BRBF_data;
     res.lagged_PLV_BRBF_time = datin.res.lagged_PLV_BRBF_time;
     res.lagged_PLV_BRBF_lagtime = datin.res.lagged_PLV_BRBF_lagtime;
@@ -496,8 +505,8 @@ end
 % plot coherence for specified electrode cluster
 pl.elec2plot = {'Iz'};
 pl.elec2plot = {'Oz'};
-pl.elec2plot = {'C3'};
-pl.elec2plot = {'O1'};
+% pl.elec2plot = {'C3'};
+% pl.elec2plot = {'O1'};
 pl.elec2plot_i = logical(sum(cell2mat(cellfun(@(x) strcmp({EEG.chanlocs.labels},x), pl.elec2plot, 'UniformOutput',false)),1));
 
 pl.cols2plot = [1 0.1 0.1; 0.5 0.1 0.1; 0.2 0.5 1; 0.2 0.25 0.5];

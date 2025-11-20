@@ -6,8 +6,8 @@
 
 clearvars
 %% initial parameters
-p.path_bdf = 'O:\AllgPsy\experimental_data\2022_SSVEP_Noise_FShift\diode_data\DiodeTest.bdf';
-p.path_diodeTiming = 'O:\AllgPsy\experimental_data\2022_SSVEP_Noise_FShift\diode_data\diode_timing.mat';
+p.path_bdf = 'N:\AllgPsy\experimental_data\2022_SSVEP_Noise_FShift\diode_data\DiodeTest.bdf';
+p.path_diodeTiming = 'N:\AllgPsy\experimental_data\2022_SSVEP_Noise_FShift\diode_data\diode_timing.mat';
 
 p.trig.trial_start = 88;
 p.trig.trial_end = 89;
